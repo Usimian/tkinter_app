@@ -26,14 +26,13 @@ class ResourceError(Exception):
 class App:
     def __init__(self, root):
         # Configure logging
-        logging.basicConfig(level=logging.INFO,
-                            format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
         self.logger = logging.getLogger(__name__)
 
         try:
             self.root = root
             self.root.title("Camera Feed")
-            self.root.geometry("400x600")
+            self.root.geometry("450x620")
 
             # Configure root window grid
             self.root.grid_rowconfigure(0, weight=1)
@@ -178,22 +177,21 @@ class App:
         try:
             # Get CPU usage percentage (averaged across all cores)
             cpu_percent = psutil.cpu_percent(interval=None)
+            # Get CPU frequency
+            cpu_freq = psutil.cpu_freq().current / 1000  # Convert MHz to GHz
 
             # Update progress bar and label
             self.cpu_bar['value'] = cpu_percent
-            self.cpu_label.config(text=f"CPU Load: {cpu_percent:.1f}%")
+            self.cpu_label.config(text=f"CPU Load: {cpu_percent:.1f}% ({cpu_freq:.2f} GHz)")
 
             # Change progress bar color based on CPU load
             style = ttk.Style()
             if cpu_percent > 80:
-                style.configure('CPU.Horizontal.TProgressbar',
-                                background='#FF5252')  # Red
+                style.configure('CPU.Horizontal.TProgressbar',background='#FF5252')  # Red
             elif cpu_percent > 60:
-                style.configure('CPU.Horizontal.TProgressbar',
-                                background='#FFA726')  # Orange
+                style.configure('CPU.Horizontal.TProgressbar',background='#FFA726')  # Orange
             else:
-                style.configure('CPU.Horizontal.TProgressbar',
-                                background='#2196F3')  # Blue
+                style.configure('CPU.Horizontal.TProgressbar',background='#2196F3')  # Blue
 
         except Exception as e:
             print(f"Error reading CPU load: {e}")
