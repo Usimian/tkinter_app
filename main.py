@@ -67,11 +67,13 @@ class App:
 
         # Create video container frame with red border
         self.video_frame = tk.Frame(self.main_frame, background='red')
-        self.video_frame.grid(row=0, column=0, pady=(0, 10))
+        self.video_frame.grid(row=0, column=0, pady=(0, 10), sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.video_frame.grid_rowconfigure(0, weight=1)
+        self.video_frame.grid_columnconfigure(0, weight=1)
 
         # Create video label with small padding to show red border
         self.video_label = ttk.Label(self.video_frame, padding=2)
-        self.video_label.grid(row=0, column=0)
+        self.video_label.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Create figure for pie chart
         self.fig, self.ax = plt.subplots(figsize=(4, 3))
@@ -130,15 +132,36 @@ class App:
         if ret:
             # Convert frame from BGR to RGB
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Get current window size
+            window_width = self.video_frame.winfo_width()
+            window_height = self.video_frame.winfo_height()
+            
+            # Ensure minimum size
+            target_width = max(320, window_width - 4)  # -4 for padding
+            target_height = max(240, window_height - 4)  # -4 for padding
+            
+            # Calculate aspect ratio
+            aspect_ratio = 4/3  # Standard webcam aspect ratio
+            
+            # Adjust dimensions to maintain aspect ratio
+            if target_width/target_height > aspect_ratio:
+                target_width = int(target_height * aspect_ratio)
+            else:
+                target_height = int(target_width / aspect_ratio)
+            
             # Convert to PIL Image
             image = Image.fromarray(frame)
-            # Resize image to half size (320x240)
-            image = image.resize((320, 240))
+            # Flip the image horizontally
+            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            # Resize image maintaining aspect ratio
+            image = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
             # Convert to PhotoImage
             photo = ImageTk.PhotoImage(image=image)
             # Update label
             self.video_label.configure(image=photo)
             self.video_label.image = photo
+            
         # Schedule the next update
         if self.running:
             self.video_task = self.root.after(10, self.update_video)
