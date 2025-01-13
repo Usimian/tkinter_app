@@ -65,15 +65,15 @@ class App:
         self.main_frame.grid_rowconfigure(0, weight=1)
         self.main_frame.grid_columnconfigure(0, weight=1)
 
-        # Create video container frame with red border
-        self.video_frame = tk.Frame(self.main_frame, background='red')
+        # Create video container frame with white border
+        self.video_frame = tk.Frame(self.main_frame, background='white')
         self.video_frame.grid(row=0, column=0, pady=(0, 10), sticky=(tk.W, tk.E, tk.N, tk.S))
         self.video_frame.grid_rowconfigure(0, weight=1)
         self.video_frame.grid_columnconfigure(0, weight=1)
 
-        # Create video label with small padding to show red border
+        # Create video label with small padding to show red border and center it
         self.video_label = ttk.Label(self.video_frame, padding=2)
-        self.video_label.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.video_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
         # Create figure for pie chart
         self.fig, self.ax = plt.subplots(figsize=(4, 3))
