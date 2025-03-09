@@ -8,6 +8,7 @@ import psutil
 import matplotlib
 import logging
 from contextlib import contextmanager
+import GPUtil  # Add this import for GPU monitoring
 
 matplotlib.use('TkAgg')
 
@@ -32,7 +33,7 @@ class App:
         try:
             self.root = root
             self.root.title("Camera Feed")
-            self.root.geometry("450x620")
+            self.root.geometry("450x670")  # Increased height to accommodate GPU load
 
             # Configure root window grid
             self.root.grid_rowconfigure(0, weight=1)
@@ -43,6 +44,7 @@ class App:
             self.video_task = None
             self.memory_task = None
             self.cpu_task = None
+            self.gpu_task = None  # Add GPU task
 
             # Flag to track if the application is running
             self.running = True
@@ -93,11 +95,27 @@ class App:
                                        style='CPU.Horizontal.TProgressbar')
         self.cpu_bar.grid(row=0, column=1, sticky='ew')
 
-        # Configure progress bar style
+        # Create GPU load frame and widgets
+        self.gpu_frame = ttk.Frame(self.main_frame)
+        self.gpu_frame.grid(row=3, column=0, pady=(0, 10), sticky='ew')
+
+        self.gpu_label = ttk.Label(self.gpu_frame, text="GPU Load: N/A",
+                                  font=('Arial', 12))
+        self.gpu_label.grid(row=0, column=0, padx=(0, 10))
+
+        self.gpu_bar = ttk.Progressbar(self.gpu_frame, length=200,
+                                      mode='determinate',
+                                      style='GPU.Horizontal.TProgressbar')
+        self.gpu_bar.grid(row=0, column=1, sticky='ew')
+
+        # Configure progress bar styles
         style = ttk.Style()
         style.configure('CPU.Horizontal.TProgressbar',
                         troughcolor='#E0E0E0',
                         background='#2196F3')
+        style.configure('GPU.Horizontal.TProgressbar',
+                        troughcolor='#E0E0E0',
+                        background='#4CAF50')  # Green for GPU
 
         # Initialize video capture
         self.cap = cv2.VideoCapture(0)
@@ -107,10 +125,11 @@ class App:
             self.update_video()
             self.update_memory_chart()
             self.update_cpu_load()
+            self.update_gpu_load()  # Start GPU monitoring
 
     def _cancel_scheduled_tasks(self):
         """Cancel all scheduled tasks"""
-        for attribute in ('video_task', 'memory_task', 'cpu_task'):
+        for attribute in ('video_task', 'memory_task', 'cpu_task', 'gpu_task'):
             task_id = getattr(self, attribute, None)
             if task_id:
                 self.root.after_cancel(task_id)
@@ -225,6 +244,47 @@ class App:
         if self.running:
             self.cpu_task = self.root.after(1000, self.update_cpu_load)
 
+    def update_gpu_load(self):
+        """Update GPU load information"""
+        if not self.running:
+            return
+            
+        try:
+            # Try to get GPU information
+            gpus = GPUtil.getGPUs()
+            
+            if gpus:
+                # Get the first GPU
+                gpu = gpus[0]
+                gpu_load = gpu.load * 100  # Convert to percentage
+                gpu_memory = gpu.memoryUsed
+                gpu_temp = gpu.temperature
+                
+                # Update progress bar and label
+                self.gpu_bar['value'] = gpu_load
+                self.gpu_label.config(text=f"GPU Load: {gpu_load:.1f}% ({gpu_memory:.0f}MB, {gpu_temp}°C)")
+                
+                # Change progress bar color based on GPU load
+                style = ttk.Style()
+                if gpu_load > 80:
+                    style.configure('GPU.Horizontal.TProgressbar', background='#FF5252')  # Red
+                elif gpu_load > 60:
+                    style.configure('GPU.Horizontal.TProgressbar', background='#FFA726')  # Orange
+                else:
+                    style.configure('GPU.Horizontal.TProgressbar', background='#4CAF50')  # Green
+            else:
+                self.gpu_label.config(text="GPU: Not detected")
+                self.gpu_bar['value'] = 0
+                
+        except Exception as e:
+            self.logger.error(f"Error reading GPU load: {e}")
+            self.gpu_label.config(text="GPU Load: Error")
+            self.gpu_bar['value'] = 0
+            
+        # Schedule next update
+        if self.running:
+            self.gpu_task = self.root.after(1000, self.update_gpu_load)
+
     def _safe_cleanup(self):
         """Safely cleanup resources with error handling"""
         try:
@@ -236,7 +296,7 @@ class App:
 
     def _stop_all_tasks(self):
         """Stop all scheduled tasks"""
-        for task_id in (self.video_task, self.memory_task, self.cpu_task):
+        for task_id in (self.video_task, self.memory_task, self.cpu_task, self.gpu_task):
             if task_id:
                 self.root.after_cancel(task_id)
 
@@ -257,6 +317,8 @@ class App:
                 self.root.after_cancel(self.memory_task)
             if hasattr(self, 'cpu_task') and self.cpu_task:
                 self.root.after_cancel(self.cpu_task)
+            if hasattr(self, 'gpu_task') and self.gpu_task:
+                self.root.after_cancel(self.gpu_task)
 
             # Release camera with check
             if hasattr(self, 'cap') and self.cap and self.cap.isOpened():
